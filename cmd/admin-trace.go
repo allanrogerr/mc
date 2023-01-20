@@ -295,13 +295,15 @@ type matchOpts struct {
 }
 
 var (
-	traceLogsEnabled, traceLogsStarted                     bool
-	traceLogsStartTime                                     time.Time
-	traceLogsIntervalType                                  time.Duration
-	traceLogsFilePath, traceLogsPattern, traceLogsCompress string
-	traceLogsFile                                          *os.File
-	traceLogsFileZstdEncoder                               *zstd.Encoder
-	traceLogsFileSize                                      int
+	traceLogsEnabled, traceLogsStarted bool
+	traceLogsStartTime                 time.Time
+	traceLogsIntervalType              time.Duration
+
+	traceLogsPattern, traceLogsCompress                   string
+	traceLogsFilePath /*REMOVE*/, inlineTraceLogsFilePath string
+	traceLogsFile, inlineTraceLogsFile                    *os.File
+	traceLogsFileZstdEncoder                              *zstd.Encoder
+	traceLogsFileSize                                     int
 )
 
 func matchTrace(opts matchOpts, traceInfo madmin.ServiceTraceInfo) bool {
@@ -526,6 +528,8 @@ func matchingOpts(ctx *cli.Context) (opts matchOpts) {
 
 // Write trace log file
 func writeTracelogsFile(log string) {
+	// REMOVE
+	compressGzipInline(log)
 	traceLogsFileSize += len(log)
 	if _, err := traceLogsFile.WriteString(log + "\n"); err != nil {
 		traceLogsFile.Close()
@@ -535,6 +539,8 @@ func writeTracelogsFile(log string) {
 
 // Compress trace log file
 func compressTraceLogsFile() {
+	// REMOVE
+	inlineTraceLogsFile.Close()
 	// Create separate fd for asynch compress
 	switch traceLogsCompress {
 	case "gzip":
@@ -571,6 +577,17 @@ func compressGzip(asynchTraceLogsFile *os.File, asynchTraceLogsFilePath string) 
 	compressFile.Close()
 	asynchTraceLogsFile.Close()
 	fatalIf(probe.NewError(err), "Unable to write trace log file archive for gzip `"+asynchTraceLogsFilePath+"`")
+}
+
+func compressGzipInline(log string) {
+	// fmt.Printf("compressGzipInline(log string) %v\n", log)
+	// inlineTraceLogsFile.Seek(0, io.SeekStart)
+	writer := gzip.NewWriter(inlineTraceLogsFile)
+	_, err := writer.Write([]byte(log))
+	// fmt.Printf("copied %v\n", n)
+	writer.Flush()
+	writer.Close()
+	fatalIf(probe.NewError(err), "Unable to write inline trace log file archive for gzip")
 }
 
 // zstandard
@@ -613,6 +630,8 @@ func compressZstd(asynchTraceLogsFile *os.File, asynchTraceLogsFilePath string) 
 func createTraceLogsFile() *os.File {
 	// Create and open file if it does not exist
 	traceLogsFile, err := os.OpenFile(defineTraceLogsFile(), os.O_APPEND|os.O_CREATE|os.O_RDWR, 0o644)
+	// REMOVE
+	inlineTraceLogsFile, err = os.OpenFile(defineTraceLogsFile()+".inline.gz", os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
 		fatalIf(probe.NewError(err), "Unable to create trace log file `"+defineTraceLogsFile()+"`")
 	}
