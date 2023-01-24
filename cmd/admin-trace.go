@@ -304,6 +304,8 @@ var (
 	traceLogsFile, inlineTraceLogsFile                    *os.File
 	traceLogsFileZstdEncoder                              *zstd.Encoder
 	traceLogsFileSize                                     int
+
+	traceLogsFileGzipWriter  *gzip.Writer
 )
 
 func matchTrace(opts matchOpts, traceInfo madmin.ServiceTraceInfo) bool {
@@ -582,11 +584,17 @@ func compressGzip(asynchTraceLogsFile *os.File, asynchTraceLogsFilePath string) 
 func compressGzipInline(log string) {
 	// fmt.Printf("compressGzipInline(log string) %v\n", log)
 	// inlineTraceLogsFile.Seek(0, io.SeekStart)
-	writer := gzip.NewWriter(inlineTraceLogsFile)
-	_, err := writer.Write([]byte(log))
+	if traceLogsFileGzipWriter == nil {
+		traceLogsFileGzipWriter = gzip.NewWriter(inlineTraceLogsFile)
+	}
+	_, err := traceLogsFileGzipWriter.Write([]byte(log))
+	if errors.Is(err, os.ErrClosed) {
+		inlineTraceLogsFile, err = os.OpenFile(defineTraceLogsFile()+".inline.gz", os.O_CREATE|os.O_RDWR, 0o644)
+		_, err = traceLogsFileGzipWriter.Write([]byte(log))
+	}
 	// fmt.Printf("copied %v\n", n)
-	writer.Flush()
-	writer.Close()
+	traceLogsFileGzipWriter.Flush()
+	//writer.Close()
 	fatalIf(probe.NewError(err), "Unable to write inline trace log file archive for gzip")
 }
 
