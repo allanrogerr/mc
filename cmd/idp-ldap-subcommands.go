@@ -19,6 +19,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/minio/cli"
@@ -63,6 +64,7 @@ func mainIDPLDAPAdd(ctx *cli.Context) error {
 	args := ctx.Args()
 
 	aliasedURL := args.Get(0)
+	fmt.Println("aliasedURL", aliasedURL)
 
 	// Create a new MinIO Admin Client
 	client, err := newAdminClient(aliasedURL)
@@ -79,8 +81,10 @@ func mainIDPLDAPAdd(ctx *cli.Context) error {
 		fatalIf(probe.NewError(errors.New("all config parameters must be of the form \"key=value\"")),
 			"Bad LDAP IDP configuration")
 	}
+	fmt.Println("cfgName", cfgName)
 
 	inputCfg := strings.Join(input, " ")
+	fmt.Println("inputCfg", inputCfg)
 
 	restart, e := client.AddOrUpdateIDPConfig(globalContext, madmin.LDAPIDPCfg, cfgName, inputCfg, false)
 	fatalIf(probe.NewError(e), "Unable to add LDAP IDP config to server")
