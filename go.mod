@@ -2,7 +2,7 @@ module github.com/minio/mc
 
 go 1.19
 
-replace github.com/minio/madmin-go => ../madmin-go
+replace github.com/minio/madmin-go/v3 => ../madmin-go
 
 require (
 	github.com/charmbracelet/bubbletea v0.24.2
